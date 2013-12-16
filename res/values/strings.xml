@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">UploadToServer</string>
+    <string name="action_settings">Settings</string>
+    <string name="hello_world">Hello world!</string>
+    <string name="title_activity_fetch_file">FetchFileActivity</string>
+    <string name="title_activity_check_back_up_status">CheckBackUpStatusActivity</string>
+
+</resources>
