@@ -33,3 +33,4 @@ proguard-project.txt
 project.properties
 .settings/
 *.swp
+libs/

@@ -2,28 +2,39 @@ package com.androidexample.uploadtoserver;
 
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.params.BasicHttpParams;
+import org.json.JSONArray;
 import org.json.JSONObject;
+//import org.apache.commons.;
 
 
 import android.app.Activity;
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -41,14 +52,23 @@ public class UploadToServer extends Activity {
     int serverResponseCode = 0;
     ProgressDialog dialog = null;
         
-    String upLoadServerUri = null;
+  //  String upLoadServerUri = null;
     String checkBackUpstatusUri = null;
     String fetchUri = null;
     /**********  File Path *************/
  
-    final String uploadFilePath = "/data/local/tmp/";
-    final String uploadFileName = "haha.txt";
-    
+    final String directory = "/mnt/sdcard/DCIM/Camera/";
+ //   final String directory = "/mnt/sdcard/tmp/";
+   // final String uploadFileName = "first.jpg";
+   // final String uploadFilePath = "/mnt/sdcard/tmp/";
+    // final String uploadFileName = "test.txt";
+  // final String downloadFilePath = "/mnt/sdcard/tmp/";
+ //   final String downloadFileName = "test.txt";
+   // final String downloadFilePath = "";
+    //final String downloadFileName = "first.jpg";
+    String ip = "160.39.205.141";
+ //   final String fetchDirectory = "/mnt/sdcard/tmp/";
+    final String fetchDirectory = "/mnt/sdcard/DCIM/Camera/";
     @Override
     public void onCreate(Bundle savedInstanceState) {
          
@@ -60,13 +80,13 @@ public class UploadToServer extends Activity {
         fetchButton = (Button)findViewById(R.id.fetchButton);
         messageText  = (TextView)findViewById(R.id.messageText);
          
-        messageText.setText("Uploading file path :- "+uploadFilePath+uploadFileName+"'");
+        messageText.setText("Uploading file path :- "+directory+"'");
          
         /************* Php script path ****************/
-        upLoadServerUri = requestUrl("Mickey",uploadFilePath+uploadFileName , "update") ;
-        checkBackUpstatusUri = "http://160.39.205.142:8080/gppcloudbackend/get_backup_info?user_id=Mickey";
-        fetchUri = "http://160.39.205.142:8080/gppcloudbackend/download_files?user_id=jiatian&path=data/local/tmp/haha.txt";
-        Log.i("uploadserverurl", upLoadServerUri);
+        
+      //  upLoadServerUri = requestUrl("Mickey",uploadFilePath+uploadFileName , "update") ;
+       
+         Log.i("uploadserverurl", directory);
         uploadButton.setOnClickListener(new OnClickListener() {            
             @Override
             public void onClick(View v) {
@@ -80,8 +100,9 @@ public class UploadToServer extends Activity {
                                         messageText.setText("uploading started.....");
                                     }
                                 });                      
-                           
-                             uploadFile(uploadFilePath + "" + uploadFileName);
+                           backUpAllFilesUnderOneDirectory(directory);
+                          //   uploadFile(uploadFilePath + "" + uploadFileName);
+                             
                                                       
                         }
                       }).start();        
@@ -102,7 +123,7 @@ public class UploadToServer extends Activity {
     	                                }
     	                            });                      
     	                       
-    	                         checkBackUpStatus();
+    	                         checkBackUpStatus(directory);
     	                                                  
     	                    }
     	                  }).start();     
@@ -121,10 +142,8 @@ public class UploadToServer extends Activity {
 	                                public void run() {
 	                                    messageText.setText("File file starting.....");
 	                                }
-	                            });                      
-	                       
-	                         fetchfile();
-	                                                  
+	                            });           
+	                         fetchAllFilesUnderOneDirectory(fetchDirectory);                          
 	                    }
 	                  }).start();        
     		}
@@ -134,16 +153,26 @@ public class UploadToServer extends Activity {
     /*
      * combine the user_id, the file path and the request status to form a request url
      */
-    public String requestUrl(String user_id, String path,String status ){
+    public String requestUrl(String user_id, String path,String status, String function ){
     	path = path.substring(1, path.length());
+    	String url = "";
     	DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
 		Date date = new Date();
 		String timeStamp = dateFormat.format(date);
 		System.out.println(timeStamp);
-    	String uploadurl = "http://160.39.205.142:8080/gppcloudbackend/upload_files?user_id="+user_id+"&path="+path+"&timestamp="+timeStamp+"&status="+status;
-    	uploadurl = uploadurl.replaceAll(" ", "%20");
-    	return uploadurl; 
+		if(function.equals("upload")){
+			url = "http://"+ip+":8080/gppcloudbackend/upload_files?user_id="+user_id+"&path="+path+"&timestamp="+timeStamp+"&status="+status;
+		}
+		if(function.equals("fetch")){
+    	    url = "http://"+ip+":8080/gppcloudbackend/download_files?user_id=Mickey&path="+path;
+		}
+		if(function.equals("checkstatus")){
+			url = "http://"+ip+":8080/gppcloudbackend/get_backup_info?user_id=Mickey&&dir="+path;
+		}
+    	url = url.replaceAll(" ", "%20");
+    	return url; 
     }
+   
     /*
      * upload file
      */
@@ -168,12 +197,12 @@ public class UploadToServer extends Activity {
                dialog.dismiss(); 
                 
                Log.e("uploadFile", "Source File not exist :"
-                                   +uploadFilePath + "" + uploadFileName);
+                                   +sourceFileUri);
                 
                runOnUiThread(new Runnable() {
                    public void run() {
                        messageText.setText("Source File not exist :"
-                               +uploadFilePath + "" + uploadFileName);
+                               +"sourceFileUri");
                    }
                }); 
                 
@@ -183,7 +212,7 @@ public class UploadToServer extends Activity {
           else
           {
                try { 
-                    
+            	   String upLoadServerUri = requestUrl("Mickey",sourceFileUri, "update","upload") ;
                      // open a URL connection to the Servlet
                    FileInputStream fileInputStream = new FileInputStream(sourceFile);
                    URL url = new URL(upLoadServerUri);
@@ -202,10 +231,11 @@ public class UploadToServer extends Activity {
                    dos = new DataOutputStream(conn.getOutputStream());
           
                    dos.writeBytes(twoHyphens + boundary + lineEnd); 
-                  // dos.writeBytes("Content-Disposition: form-data; name="uploaded_file";filename=""
-                    //                         + fileName + """ + lineEnd);
-                   dos.writeBytes("Content-Disposition: form-data; name=\"uploaded_file\";filename=\""
-                           + uploadFileName + "\"" + lineEnd);
+                
+                //   dos.writeBytes("Content-Disposition: form-data; name=\"uploaded_file\";filename=\""
+               //            + uploadFileName + "\"" + lineEnd);
+                   dos.writeBytes("Content-Disposition: form-data; name=\""
+                                       + sourceFileUri + "\"" + lineEnd);
                    dos.writeBytes(lineEnd);
           
                    // create a buffer of  maximum size
@@ -244,7 +274,7 @@ public class UploadToServer extends Activity {
                                  
                                 String msg = "File Upload Completed.\n\n See uploaded file here : \n\n"
                                               +" http://www.androidexample.com/media/uploads/"
-                                              +uploadFileName;
+                                              +"";
                                  
                                 messageText.setText(msg);
                                 Toast.makeText(UploadToServer.this, "File Upload Complete.", 
@@ -293,21 +323,17 @@ public class UploadToServer extends Activity {
            } // End else block 
          } 
  /*
-  *    
+  *    get the files needed to restore
   */
-    public int checkBackUpStatus() {
+    public ArrayList<String> checkBackUpStatus(String diretoryToResotre) {
+    	ArrayList<String> fileforbackupList = new ArrayList<String>();
         Log.i("enter checkbackup status", "success");
         
-
-       // HttpURLConnection conn = null;
-     //   DataOutputStream dos = null;  
-        
-         try { 
-                  
-                   
+         try {       
         	 DefaultHttpClient   httpclient = new DefaultHttpClient(new BasicHttpParams());
+        	 String checkBackUpstatusUri = requestUrl("Mickey", diretoryToResotre, "", "checkstatus");
+        		    
         	 HttpPost httppost = new HttpPost(checkBackUpstatusUri);
-        	 // Depends on your web service
         	 Log.i("url:",checkBackUpstatusUri);
         	 httppost.setHeader("Content-type", "application/json");
 
@@ -330,7 +356,6 @@ public class UploadToServer extends Activity {
                  }
 
         	     inputStream = entity.getContent();
-        	     // json is UTF-8 by default
         	     BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, "UTF-8"), 8);
         	     StringBuilder sb = new StringBuilder();
 
@@ -347,18 +372,19 @@ public class UploadToServer extends Activity {
         	     try{if(inputStream != null)inputStream.close();}catch(Exception squish){}
         	 }   
         	 JSONObject jObject = new JSONObject(result);
-        	// String aJsonString = jObject.getString("Content");
         	 Log.i("aJsonString", jObject.toString());
-        	// {"UserID":"Mickey","Paths":[{"TimeStamp":"2013\/12\/15 17:54:04","Path":"data\/local\/tmp\/haha.txt"}]}
         	 String user_id = jObject.getString("UserID");
-        	 String path = jObject.getString("Paths");
+        	 String fileList = jObject.getString("FileList");
+        	// JSONObject jObject2 = new JSONObject(fileList);
+        	 JSONArray filearray = jObject.getJSONArray("FileList");
+        	 //Iterator iterator = filearray.
+        	 for(int i = 0; i<filearray.length();i++){
+        		 JSONObject jb = filearray.getJSONObject(i);
+        		 String filename = jb.getString("File");
+        		 fileforbackupList.add(filename);
+        	 }
         	 Log.i("user_id",user_id);
-        	 Log.i("path",path);
-                 //close the streams //
-           /*      fileInputStream.close();
-                 dos.flush();
-                 dos.close();
-             */      
+        	 Log.i("path",fileList);    
             } catch (Exception e) {
                  
                 dialog.dismiss();  
@@ -374,20 +400,43 @@ public class UploadToServer extends Activity {
                 Log.e("Upload file to server Exception", "Exception : "+ e.getMessage(), e);  
             }
             dialog.dismiss();       
-            return serverResponseCode; 
+         //   return serverResponseCode; 
+            return fileforbackupList;
              
-         } // End else block 
-    public int fetchfile(){
+         } // End else block
+    /*
+     * upload all files under one directory
+     */
+    public void backUpAllFilesUnderOneDirectory(String directory){
+    	File folder = new File(directory);
+    	File[] listOfFiles = folder.listFiles();
+    	String filename;
+    	String uploadUri;
+    	for(int i = 0; i < listOfFiles.length; i++){
+    		if(listOfFiles[i].isFile()){
+    			filename = listOfFiles[i].getName();
+    			Log.i("filename", filename);
+    			uploadFile(directory+""+filename);
+    		}
+    	}
+    }
+    /*
+     * fetch all files under one directory
+     */
+    public void fetchAllFilesUnderOneDirectory(String fetchDirectory){
+    	ArrayList<String> fileNames = checkBackUpStatus(fetchDirectory);
+    	for(String filename:fileNames){
+    		String filePathfileName = fetchDirectory+filename;
+    		fetchfile(filePathfileName);
+    		//String urlForFetchEachFile = 
+    	}
+    }
+    public int fetchfile(String fetchfilename){
     	 Log.i("enter fetch file", "success");
- 	    
-
-  	   // HttpURLConnection conn = null;
-  	 //   DataOutputStream dos = null;  
-  	    
   	     try { 
-  	              
-  	               
-  	    	 DefaultHttpClient   httpclient = new DefaultHttpClient(new BasicHttpParams());
+  	    	
+			DefaultHttpClient   httpclient = new DefaultHttpClient(new BasicHttpParams());
+			String fetchUri = requestUrl("Mickey", fetchfilename, "", "fetch");
   	    	 HttpPost httppost = new HttpPost(fetchUri);
   	    	 // Depends on your web service
   	    	 Log.i("url:",fetchUri);
@@ -411,31 +460,26 @@ public class UploadToServer extends Activity {
   	                 });     
   	             }
 
-  	    	/*     inputStream = entity.getContent();
+  	    	     inputStream = entity.getContent();
+  	    	     byte[] bytes = IOUtils.toByteArray(inputStream);
   	    	     // json is UTF-8 by default
-  	    	     BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, "UTF-8"), 8);
-  	    	     StringBuilder sb = new StringBuilder();
-
-  	    	     String line = null;
-  	    	     while ((line = reader.readLine()) != null)
-  	    	     {
-  	    	         sb.append(line + "\n");
+  	    	     String filedownloadpath = fetchfilename;
+  	    	     File filedownload = new File(filedownloadpath);
+  	    	     if(!filedownload.exists()){
+  	    	    	 filedownload.createNewFile();
   	    	     }
-  	    	     result = sb.toString();*/
+  	    	     FileOutputStream output = new FileOutputStream(filedownload);
+  	    	     IOUtils.write(bytes, output);
+
+  	    	     
   	    	 } catch (Exception e) { 
   	    	     // Oops
+  	    		 e.printStackTrace();
   	    	 }
   	    	 finally {
   	    	     try{if(inputStream != null)inputStream.close();}catch(Exception squish){}
   	    	 }   
-  	 /*   	 JSONObject jObject = new JSONObject(result);
-  	    	 Log.i("aJsonString", jObject.toString());
-  	    	// {"UserID":"Mickey","Paths":[{"TimeStamp":"2013\/12\/15 17:54:04","Path":"data\/local\/tmp\/haha.txt"}]}
-  	    	 String user_id = jObject.getString("UserID");
-  	    	 String path = jObject.getString("Paths");
-  	    	 Log.i("user_id",user_id);
-  	    	 Log.i("path",path);*/
-  	          
+  	 
   	        } catch (Exception e) {
   	             
   	            dialog.dismiss();  
